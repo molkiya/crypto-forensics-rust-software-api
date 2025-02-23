@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ Биткоин Транзакций</title>
+    <style>
+        body {
+            background-color: #1C1C1E;
+            font-family: Arial, sans-serif;
+            color: #E5E5E5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #2E2E30;
+            padding: 40px;
+            border-radius: 10px;
+            width: 450px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        h1 {
+            text-align: center;
+            color: #E5E5E5;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #A0A0A2;
+            font-size: 16px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .icon {
+            display: block;
+            margin: 0 auto 20px;
+            width: 50px;
+            height: 50px;
+            background: url('https://upload.wikimedia.org/wikipedia/commons/6/6b/Bitcoin.svg') no-repeat center center;
+            background-size: contain;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #707070;
+            border: 1px solid #C4C4C4;
+            color: #E5E5E5;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        input[type="text"]:hover {
+            background-color: #888888;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #3F3F41;
+            color: #E5E5E5;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button:hover {
+            background-color: #888888;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #A0A0A2;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Анализ Биткоин Транзакций</h1>
+    <div class="icon"></div>
+    <p>Введите адрес Биткоин кошелька для отслеживания и анализа.</p>
+    <form action="/confirm" method="post">
+        <input type="text" name="inputText" minlength="14" maxlength="74" required />
+        <button type="submit">Анализ</button>
+    </form>
+</div>
+</body>
+</html>
