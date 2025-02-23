@@ -1,3 +1,5 @@
+mod infrastructure;
+
 use actix_web::{Responder, web, get, post, HttpRequest, HttpResponse, HttpServer, App};
 use tokio::fs::{read_to_string, create_dir_all};
 use std::collections::HashMap;
@@ -7,14 +9,12 @@ use std::net::{TcpListener};
 use plotly::{Scatter, Plot};
 use urlencoding;
 use open;
+use infrastructure::constants::{UNIX_START_PORT,
+                                UNIX_END_PORT,
+                                WINDOWS_START_PORT,
+                                WINDOWS_END_PORT};
 
 const DATA_DIR: &str = "./src/data";
-
-const UNIX_START_PORT: u16 = 8000;
-const UNIX_END_PORT: u16 = 8999;
-
-const WINDOWS_START_PORT: u16 = 49152;
-const WINDOWS_END_PORT: u16 = 65535;
 
 fn redirect_to_error_page(error_message: &str) -> HttpResponse {
     HttpResponse::Found()
@@ -23,7 +23,6 @@ fn redirect_to_error_page(error_message: &str) -> HttpResponse {
 }
 
 async fn plot_generation() -> Result<String, std::io::Error> {
-    // Генерируем график
     let trace = Scatter::new(vec![1, 2, 3, 4, 5], vec![10, 15, 13, 17, 21]);
     let mut plot = Plot::new();
     plot.add_trace(trace);
