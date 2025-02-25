@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Анализ транзакции</title>
+  <style>
+    body {
+      background-color: #1C1C1E;
+      font-family: Arial, sans-serif;
+      color: #E5E5E5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background-color: #2E2E30;
+      padding: 40px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 900px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    h1 {
+      text-align: center;
+      color: #E5E5E5;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px; /* Устанавливаем минимальную ширину таблицы */
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      white-space: nowrap; /* Запрещаем перенос текста на новую строку */
+    }
+    th {
+      background-color: #444;
+      color: #E5E5E5;
+    }
+    td {
+      background-color: #333;
+      color: #C4C4C4;
+    }
+    tr:nth-child(even) td {
+      background-color: #444;
+    }
+    tr:hover td {
+      background-color: #555;
+    }
+    .footer {
+      font-size: 14px;
+      color: #A0A0A2;
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Анализ транзакции</h1>
+  <div class="table-container">
+    <table>
+      <thead>
+      <tr>
+        <th>Параметр</th>
+        <th>Значение</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for key, value in data %}
+      <tr>
+        <td>{{ key }}</td>
+        <td>{{ value }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="footer">
+    <p>Транзакция анализируется с использованием данных из нескольких источников.</p>
+  </div>
+</div>
+</body>
+</html>

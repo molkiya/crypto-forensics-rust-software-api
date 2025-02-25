@@ -2,12 +2,14 @@ mod infrastructure;
 mod application;
 
 use actix_web::{Responder, web, get, post, HttpRequest, HttpResponse, HttpServer, App};
-use tokio::fs::{read_to_string, create_dir_all};
-use serde_json::{json, Map, Number, Value};
+use tokio::fs::{read_to_string};
+use indexmap::IndexMap;
+use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::env;
+use env_logger;
 use std::net::{TcpListener};
 use urlencoding;
 use open;
@@ -16,6 +18,7 @@ use infrastructure::constants::{UNIX_START_PORT,
                                 WINDOWS_START_PORT,
                                 WINDOWS_END_PORT};
 use csv::Reader;
+use plotly::color::Color;
 use tera::{Tera, Context};
 
 const DATA_DIR: &str = "./src/data";
@@ -25,6 +28,91 @@ fn redirect_to_error_page(error_message: &str) -> HttpResponse {
     HttpResponse::Found()
         .header("Location", format!("/error.html?error={}", urlencoding::encode(error_message)))
         .finish()
+}
+
+// Функция для поиска в CSV
+// Универсальная функция для поиска данных в CSV
+fn find_in_csv(file_name: &str, key: &str) -> Option<HashMap<String, String>> {
+    let path = get_data_path(&"1111DAYXhoxZx2tsRnzimfozo783x1yC2" , file_name);
+    if !path.exists() {
+        return None;
+    }
+    let mut rdr = Reader::from_path(&path).ok()?;
+    let headers = rdr.headers().ok()?.clone();
+    for result in rdr.records() {
+        let record = result.ok()?;
+        if record.get(0)? == key {
+            let mut data = HashMap::new();
+            for (i, field) in headers.iter().enumerate() {
+                data.insert(field.to_string(), record.get(i)?.to_string());
+            }
+            return Some(data);
+        }
+    }
+    None
+}
+
+struct AppState {
+    tera: Tera,
+}
+
+#[get("/tx/{tx_id}")]
+async fn get_transaction(
+    path: web::Path<String>
+) -> impl Responder {
+    let tx_id = path.into_inner();
+    let file_path = get_data_path("1111DAYXhoxZx2tsRnzimfozo783x1yC2", "elliptic_txs_features.csv");
+
+    match find_in_csv(file_path.to_str().unwrap(), &tx_id) {
+        Some(data) => {
+            let mut ctx = Context::new();
+            ctx.insert("data", &data);
+
+            let analysis_template_path = Path::new("static/tx.html");
+            let analysis_template_content = match read_to_string(analysis_template_path).await {
+                Ok(content) => content,
+                Err(err) => return redirect_to_error_page(&format!("Ошибка загрузки шаблона анализа: {:?}", err)),
+            };
+
+            match Tera::one_off(&analysis_template_content, &ctx, true) {
+                Ok(html) => HttpResponse::Ok()
+                    .content_type("text/html; charset=utf-8")
+                    .body(html),
+                Err(err) => redirect_to_error_page(&format!("Ошибка рендеринга шаблона: {:?}", err)),
+            }
+        }
+        None => HttpResponse::NotFound().content_type("text/html; charset=utf-8").body("Транзакция не найдена"),
+    }
+}
+
+
+#[get("/address/{address}")]
+async fn get_address(
+    path: web::Path<String>
+) -> impl Responder {
+    let address = path.into_inner();
+    let file_path = get_data_path("1111DAYXhoxZx2tsRnzimfozo783x1yC2", "wallets_features_classes_combined.csv");
+
+    match find_in_csv(file_path.to_str().unwrap(), &address) {
+        Some(data) => {
+            let mut ctx = Context::new();
+            ctx.insert("data", &data);
+
+            let analysis_template_path = Path::new("static/address.html");
+            let analysis_template_content = match read_to_string(analysis_template_path).await {
+                Ok(content) => content,
+                Err(err) => return redirect_to_error_page(&format!("Ошибка загрузки шаблона анализа: {:?}", err)),
+            };
+
+            match Tera::one_off(&analysis_template_content, &ctx, true) {
+                Ok(html) => HttpResponse::Ok()
+                    .content_type("text/html; charset=utf-8")
+                    .body(html),
+                Err(err) => redirect_to_error_page(&format!("Ошибка рендеринга шаблона: {:?}", err)),
+            }
+        }
+        None => HttpResponse::NotFound().content_type("text/html; charset=utf-8").body("Адрес не найден"),
+    }
 }
 
 #[get("/")]
@@ -68,21 +156,69 @@ struct TxAddr {
 }
 
 #[derive(Debug, Serialize)]
+struct NormalNode {
+    fill: String
+}
+
+#[derive(Debug, Serialize)]
 struct Node {
     id: String,
+    normal: NormalNode
 }
 
 #[derive(Debug, Serialize)]
 struct Edge {
     from: String,
     to: String,
-    txId: String
+    id: String,
+    normal: NormalEdge
+}
+
+#[derive(Debug, Serialize)]
+struct NormalEdge {
+    stroke: StrokeEdge,
+}
+
+#[derive(Debug, Serialize)]
+struct StrokeEdge {
+    color: String
 }
 
 fn plot_graph(folder_name: &str) -> Result<Value, std::io::Error> {
     let mut nodes_set = HashSet::new();
     let mut edges = Vec::new();
     let mut tx_map: HashMap<String, String> = HashMap::new();
+    let mut tx_classes: HashMap<String, String> = HashMap::new(); // Хранение классов транзакций
+
+    // Читаем elliptic_txs_classes.csv
+    let path = get_data_path(folder_name, "elliptic_txs_classes.csv");
+    if path.exists() {
+        let mut rdr = Reader::from_path(&path)?;
+        for result in rdr.records() {
+            let record = result?;
+            let tx_id = record.get(0).unwrap_or("").to_string();
+            let class = record.get(1).unwrap_or("").to_string();
+            tx_classes.insert(tx_id, class);
+        }
+    } else {
+        return Err(std::io::Error::new(std::io::ErrorKind::NotFound, format!("File {:?} not found", path)));
+    }
+
+    let mut node_classes: HashMap<String, String> = HashMap::new(); // Хранение классов узлов
+
+    // Читаем wallet_features_classes_combined.csv
+    let path = get_data_path(folder_name, "wallets_features_classes_combined.csv");
+    if path.exists() {
+        let mut rdr = Reader::from_path(&path)?;
+        for result in rdr.records() {
+            let record = result?;
+            let address = record.get(0).unwrap_or("").to_string();
+            let class = record.get(2).unwrap_or("").to_string(); // Третий столбец
+            node_classes.insert(address, class);
+        }
+    } else {
+        return Err(std::io::Error::new(std::io::ErrorKind::NotFound, format!("File {:?} not found", path)));
+    }
 
     // Читаем AddrTx_edgelist.csv
     let path = get_data_path(folder_name,"AddrTx_edgelist.csv");
@@ -108,12 +244,37 @@ fn plot_graph(folder_name: &str) -> Result<Value, std::io::Error> {
         let record = record?;
         nodes_set.insert(record.output_address.clone());
         if let Some(from) = tx_map.get(&record.txId) {
-            edges.push(Edge { from: from.clone(), to: record.output_address, txId: record.txId });
+            let tx_class = tx_classes.get(&record.txId).map(|s| s.as_str()).unwrap_or("unknown");
+            let fill_color = if tx_class == "unknown" {
+                "#00FF00" // Зеленый
+            } else if tx_class == "2" {
+                "#FF0000" // Красный
+            } else {
+                "#CCCCCC" // Серый по умолчанию
+            };
+
+            edges.push(Edge {
+                from: from.clone(),
+                to: record.output_address,
+                id: record.txId,
+                normal: NormalEdge { stroke: StrokeEdge { color: String::from(fill_color) }},
+            });
         }
     }
 
     // Формируем список узлов
-    let nodes: Vec<Node> = nodes_set.into_iter().map(|id| Node { id }).collect();
+    let nodes: Vec<Node> = nodes_set.into_iter().map(|id| {
+        let node_class = node_classes.get(&id).map(|s| s.as_str()).unwrap_or("unknown");
+        let fill_color = if node_class == "3" {
+            "#00FF00" // Зеленый
+        } else if node_class == "2" {
+            "#CCCCCC" // Серый
+        } else {
+            "#FFFFFF" // Обычный белый
+        };
+
+        Node { id, normal: NormalNode { fill: String::from(fill_color) } }
+    }).collect();
 
     // Создаём объект графа
     Ok(json!({ "nodes": nodes, "edges": edges }))
@@ -132,20 +293,14 @@ async fn confirm_file(form: web::Form<HashMap<String, String>>) -> impl Responde
         return redirect_to_error_page("Название папки должно содержать от 14 до 74 символов");
     }
 
-    // Загружаем `graph_template.html`
-    let graph_template_path = Path::new("static/graph_template.html");
-    let graph_template_content = match read_to_string(graph_template_path).await {
+    // Загружаем template для анализа
+    let analysis_template_path = Path::new("static/analysis.html");
+    let analysis_template_content = match read_to_string(analysis_template_path).await {
         Ok(content) => content,
-        Err(err) => return redirect_to_error_page(&format!("Ошибка загрузки HTML-шаблона: {:?}", err)),
+        Err(err) => return redirect_to_error_page(&format!("Ошибка загрузки шаблона анализа: {:?}", err)),
     };
 
-    let folder_path = Path::new(DATA_DIR).join(folder_name);
-    if let Err(err) = create_dir_all(&folder_path).await {
-        return redirect_to_error_page(&format!("Не удалось создать папку: {}", err));
-    }
-
-    // Создаем контекст для `graph_template`
-    // Генерируем данные графа
+    // Генерация данных графа (AnyChart)
     let graph_data = match plot_graph(folder_name) {
         Ok(data) => data,
         Err(err) => return redirect_to_error_page(&format!("Ошибка генерации графа: {:?}", err)),
@@ -153,10 +308,8 @@ async fn confirm_file(form: web::Form<HashMap<String, String>>) -> impl Responde
 
     // Создаем контекст для шаблона
     let mut graph_context = Context::new();
-
     if let Some(nodes) = graph_data.get("nodes") {
         let nodes_json = serde_json::to_string(nodes).unwrap_or_else(|_| "[]".to_string());
-        println!("{}", &nodes_json);
         graph_context.insert("nodes", &nodes_json);
     }
     if let Some(edges) = graph_data.get("edges") {
@@ -164,27 +317,18 @@ async fn confirm_file(form: web::Form<HashMap<String, String>>) -> impl Responde
         graph_context.insert("edges", &edges_json);
     }
 
-    // Рендерим `graph_template`
-    let graph_rendered = match Tera::one_off(&graph_template_content, &graph_context, true) {
+    // Рендерим граф в шаблоне
+    let graph_rendered = match Tera::one_off(&analysis_template_content, &graph_context, true) {
         Ok(html) => html,
-        Err(err) => return redirect_to_error_page(&format!("Ошибка рендеринга шаблона графа: {:?}", err)),
+        Err(err) => return redirect_to_error_page(&format!("Ошибка рендеринга графа в шаблоне: {:?}", err)),
     };
 
-    // Загружаем `main_template.html`
-    let main_template_path = Path::new("static/analysis.html");
-    let main_template_content = match read_to_string(main_template_path).await {
-        Ok(content) => content,
-        Err(err) => return redirect_to_error_page(&format!("Ошибка загрузки основного HTML-шаблона: {:?}", err)),
-    };
-
-    // Подставляем `graph_rendered` в `PLOT_DATA`
-    let final_html = main_template_content.replace("{PLOT_DATA}", &graph_rendered);
-
-    // Возвращаем HTML
+    // Возвращаем итоговый HTML
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(final_html)
+        .body(graph_rendered)
 }
+
 
 async fn find_available_port(start_port: u16, end_port: u16) -> Option<u16> {
     for port in start_port..=end_port {
@@ -208,6 +352,9 @@ async fn find_available_port(start_port: u16, end_port: u16) -> Option<u16> {
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+
     let mut available_port: Option<u16> = None; // Declare as Option<u16>
 
     let os = env::consts::OS;
@@ -231,7 +378,12 @@ async fn main() -> Result<(), std::io::Error> {
     match available_port {
         Some(port) => {
             println!("Found available port: {}", port);
-            let server = HttpServer::new(|| App::new().service(index).service(confirm_file))
+            let server = HttpServer::new(|| App::new()
+                .service(index)
+                .service(confirm_file)
+                .service(get_transaction)
+                .service(get_address)
+            )
                 .bind(("127.0.0.1", port))?
                 .workers(1)
                 .run();
