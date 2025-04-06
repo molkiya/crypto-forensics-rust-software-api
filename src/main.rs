@@ -2,8 +2,7 @@ mod infrastructure;
 mod application;
 
 use actix_web::{Responder, web, get, post, HttpRequest, HttpResponse, HttpServer, App};
-use tokio::fs::{read_to_string};
-use indexmap::IndexMap;
+use tokio::fs::{read_dir, read_to_string, metadata, DirEntry};
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -11,15 +10,15 @@ use std::path::{Path, PathBuf};
 use std::env;
 use env_logger;
 use std::net::{TcpListener};
+use std::ops::Add;
 use urlencoding;
 use open;
-use infrastructure::constants::{UNIX_START_PORT,
-                                UNIX_END_PORT,
-                                WINDOWS_START_PORT,
-                                WINDOWS_END_PORT};
 use csv::Reader;
 use plotly::color::Color;
 use tera::{Tera, Context};
+use crate::infrastructure::constants::{END_PORT, START_PORT};
+use std::time::{SystemTime, UNIX_EPOCH};
+use serde::de::Unexpected::Str;
 
 const DATA_DIR: &str = "./src/data";
 
@@ -115,6 +114,22 @@ async fn get_address(
     }
 }
 
+async fn process_entry(entry: DirEntry) {
+    let path = entry.path();
+    if path.is_dir() {
+        if let Ok(metadata) = metadata(&path).await {
+            if let Ok(created_time) = metadata.created() {
+                let since_epoch = created_time.duration_since(UNIX_EPOCH).unwrap_or_default();
+                println!(
+                    "Папка: {:?}, Дата создания: {} секунд с 1970-01-01",
+                    path.file_name().unwrap_or_default(),
+                    since_epoch.as_secs()
+                );
+            }
+        }
+    }
+}
+
 #[get("/")]
 async fn index(_req: HttpRequest) -> HttpResponse {
     let current_dir = env::current_dir().unwrap();
@@ -137,7 +152,7 @@ struct Transaction {
 
 fn get_data_path(folder_name: &str, file_name: &str) -> PathBuf {
     let mut path = env::current_dir().expect("Не удалось получить текущую директорию");
-    path.push("src/data");
+    path.push(DATA_DIR);
     path.push(folder_name);
     path.push(file_name);
     path
@@ -355,25 +370,7 @@ async fn main() -> Result<(), std::io::Error> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
-    let mut available_port: Option<u16> = None; // Declare as Option<u16>
-
-    let os = env::consts::OS;
-    println!("Running on OS: {}", os);
-
-    // Detect the OS and find an available port accordingly
-    match os {
-        "windows" => {
-            available_port = find_available_port(WINDOWS_START_PORT, WINDOWS_END_PORT).await;
-            println!("Windows OS detected");
-        }
-        "linux" | "macos" => {
-            available_port = find_available_port(UNIX_START_PORT, UNIX_END_PORT).await;
-            println!("Unix-based OS detected");
-        }
-        _ => {
-            println!("Unknown OS detected");
-        }
-    }
+    let available_port: Option<u16> = find_available_port(START_PORT, END_PORT).await;
 
     match available_port {
         Some(port) => {
