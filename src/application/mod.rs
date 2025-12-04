@@ -1,1 +1,2 @@
-mod plot_render;
+pub mod services;
+pub mod plot_render;

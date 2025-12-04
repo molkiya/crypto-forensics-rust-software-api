@@ -1,4 +1,41 @@
+# Environment variables
 /.env
+.env.local
+.env.*.local
+
+# Rust build artifacts
 /target
+**/*.rs.bk
+Cargo.lock
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Data files (uncomment if needed)
+# /src/data/1111DAYXhoxZx2tsRnzimfozo783x1yC2/*
+
+# Uploads
 /uploads
-/src/data/1111DAYXhoxZx2tsRnzimfozo783x1yC2/*
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
