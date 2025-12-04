@@ -1,4 +1,4 @@
-# Rust API App
+# Bitcoin AML Detection using Graph Neural Networks Rust API app
 
 Система анализа Bitcoin транзакций с веб-интерфейсом и интеграцией с LLM для выявления подозрительной активности.
 
