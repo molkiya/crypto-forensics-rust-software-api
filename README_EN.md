@@ -2,7 +2,7 @@
 
 Bitcoin transaction analysis system with web interface and LLM integration for detecting suspicious activity.
 
-> 🇬🇧 [English version](README_EN.md) | 🇷🇺 [Русская версия](README.md)
+> **Language:** [Русский](README.md) | [English](README_EN.md)
 
 ## Description
 
@@ -203,4 +203,10 @@ Marat Kiiamov (kiya.marat@gmail.com)
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+**Версии на языках:**
+- [Русский (Russian)](README.md)
+- [English](README_EN.md)
 
